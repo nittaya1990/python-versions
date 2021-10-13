@@ -9,6 +9,8 @@ on:
 
 jobs:
   setup-versions-from-manifest:
+    permissions:
+      contents: none
     name: Setup ${{ matrix.python }} ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
