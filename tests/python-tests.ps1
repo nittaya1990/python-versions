@@ -2,7 +2,9 @@ param (
     [semver] [Parameter (Mandatory = $true)] [ValidateNotNullOrEmpty()]
     $Version,
     [string] [Parameter (Mandatory = $true)] [ValidateNotNullOrEmpty()]
-    $Platform
+    $Platform,
+    [string] [Parameter (Mandatory = $true)] [ValidateNotNullOrEmpty()]
+    $Architecture
 )
 
 Import-Module (Join-Path $PSScriptRoot "../helpers/pester-extensions.psm1")
@@ -49,7 +51,14 @@ Describe "Tests" {
         "python ./sources/simple-test.py" | Should -ReturnZeroExitCode
     }
 
-    if (($Version -ge "3.2.0") -and -not ([semver]"$($Version.Major).$($Version.Minor)" -eq [semver]"3.11" -and $Version.PreReleaseLabel)) {
+    # linux has no display name and no $DISPLAY environment variable - skip tk test
+    # if (-not (($Platform -match "ubuntu") -or ($Platform -match "linux"))) {
+    #     It "Check if tcl/tk has the same headed and library versions" {
+	#     "python ./sources/tcltk.py" | Should -ReturnZeroExitCode
+    #     }
+    # }
+
+    if (($Version -ge "3.2.0") -and ($Version -lt "3.11.0") -and (($Platform -ne "darwin") -or ($Architecture -ne "arm64"))) {
         It "Check if sqlite3 module is installed" {
             "python ./sources/python-sqlite3.py" | Should -ReturnZeroExitCode
         }
@@ -73,7 +82,7 @@ Describe "Tests" {
 
         It "Check if python configuration is correct" {
             $nativeVersion = Convert-Version -version $Version
-            "python ./sources/python-config-test.py $Version $nativeVersion" | Should -ReturnZeroExitCode
+            "python ./sources/python-config-test.py $Version $nativeVersion $Architecture" | Should -ReturnZeroExitCode
         }
 
         It "Check if shared libraries are linked correctly" {
@@ -86,7 +95,16 @@ Describe "Tests" {
         It "Validate Pyinstaller" {
             "pip install pyinstaller" | Should -ReturnZeroExitCode
             "pyinstaller --onefile ./sources/simple-test.py" | Should -ReturnZeroExitCode
-            "./dist/simple-test" | Should -ReturnZeroExitCode
+            $distPath = [IO.Path]::Combine($pwd, "dist", "simple-test")
+            "$distPath" | Should -ReturnZeroExitCode
         }
+    }
+
+    It "Check urlopen with HTTPS works" {
+        "python ./sources/python-urlopen-https.py" | Should -ReturnZeroExitCode
+    }
+
+    It "Check a single dist-info per distribution is present" {
+        "python ./sources/dist-info.py" | Should -ReturnZeroExitCode
     }
 }
